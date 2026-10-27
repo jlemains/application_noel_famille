@@ -96,20 +96,9 @@
 
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
         
-        <!-- BARRE DE CONFIGURATION SUPABASE (Si clé non définie) -->
-        <div v-if="needSupabaseKey" class="no-print my-6 p-4 bg-amber-50 border border-amber-300 rounded-2xl shadow-sm text-xs sm:text-sm">
-            <h4 class="font-bold text-amber-900 flex items-center gap-2 text-base mb-1">
-                <span>⚙️</span> Clé Supabase requise
-            </h4>
-            <p class="text-amber-800 mb-3">
-                Pour connecter l'application à votre projet, collez votre clé <strong>Publishable Key</strong> (commençant par <code>sb_publishable_...</code>).
-            </p>
-            <div class="flex gap-2">
-                <input v-model="customKeyInput" type="text" placeholder="sb_publishable_..." class="flex-1 p-2.5 border border-amber-300 rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <button @click="saveCustomKey" class="bg-nordic-pine text-white px-4 py-2.5 rounded-xl font-bold hover:bg-nordic-pineLight transition">
-                    Enregistrer
-                </button>
-            </div>
+        <!-- BANDEAU MODE DÉMO (Si Supabase injoignable) -->
+        <div v-if="isDemoMode" class="no-print my-6 p-3 bg-amber-50 border border-amber-300 rounded-2xl shadow-sm text-xs sm:text-sm text-amber-900">
+            ⚙️ Connexion à Supabase impossible : affichage de données de démonstration (non enregistrées).
         </div>
 
         <!-- HEADER ELEGANT -->
@@ -128,13 +117,22 @@
                     <h1 class="text-2xl font-bold text-slate-900">Répertoire des Cadeaux de Noël 🎄</h1>
                     <p class="text-xs text-slate-500">Document imprimé pour les courses familiales</p>
                 </div>
-                <button @click="togglePrintMode" class="no-print text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
-                    ❌ Quitter le mode impression
-                </button>
+                <div class="no-print flex gap-2">
+                    <button @click="printPage" class="text-xs bg-nordic-pine hover:bg-nordic-pineLight text-white px-3 py-1.5 rounded-lg font-bold">
+                        🖨️ Imprimer
+                    </button>
+                    <button @click="togglePrintMode" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
+                        ❌ Quitter
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="printData.length === 0" class="text-slate-400 italic text-sm text-center py-6">
+                Aucune liste pour le moment ❄️
             </div>
 
             <div class="space-y-6">
-                <div v-for="personGroup in printData" :key="personGroup.name" class="print-card p-4 rounded-xl bg-slate-50">
+                <div v-for="personGroup in printData" :key="personGroup.key" :class="{ 'ml-6 border-l-4 !border-l-slate-300': personGroup.isChild }" class="print-card p-4 rounded-xl bg-slate-50">
                     <h2 class="font-bold text-lg text-slate-800 border-b pb-1 mb-3">
                         🎁 Liste de {{ personGroup.name }} <span v-if="personGroup.isChild" class="text-xs font-normal text-slate-500">(Enfant de {{ personGroup.parentName }})</span>
                     </h2>
@@ -145,7 +143,11 @@
                                 <span v-if="item.notes" class="text-slate-500 text-xs block italic">{{ item.notes }}</span>
                             </div>
                             <div class="text-right">
-                                <span v-if="item.buyer_id === currentUser.id" class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">
+                                <!-- Pas de statut sur sa propre liste : on garde la surprise -->
+                                <span v-if="personGroup.isMine" class="text-slate-400 text-xs italic">
+                                    🤫 Surprise
+                                </span>
+                                <span v-else-if="item.buyer_id === currentUser.id" class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">
                                     ✅ Réservé par VOUS
                                 </span>
                                 <span v-else-if="item.buyer_id" class="text-slate-600 font-medium bg-slate-200 px-2 py-0.5 rounded text-xs">
@@ -181,6 +183,19 @@
                         class="w-full bg-nordic-pine hover:bg-nordic-pineLight text-white p-4 rounded-2xl font-bold text-base shadow-md hover:shadow-lg disabled:opacity-40 transition duration-200 transform active:scale-98">
                     Accéder aux listes
                 </button>
+
+                <!-- CRÉER UN PROFIL (si le prénom n'existe pas encore) -->
+                <div class="mt-6 pt-5 border-t border-slate-100 text-left">
+                    <p class="text-xs font-bold text-nordic-slate uppercase tracking-wider mb-2">Pas encore dans la liste ? Créer un profil</p>
+                    <div class="flex gap-2">
+                        <input v-model="newUserName" @keyup.enter="createUser" type="text" placeholder="Votre prénom..."
+                               class="flex-1 min-w-0 p-3 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-nordic-gold">
+                        <button @click="createUser" :disabled="!newUserName.trim() || isCreatingUser"
+                                class="bg-nordic-gold hover:bg-nordic-goldHover text-white text-xs px-4 py-3 rounded-xl font-bold disabled:opacity-40 transition shrink-0">
+                            {{ isCreatingUser ? '...' : '✨ Créer' }}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- APPLICATION INTERACTIVE APRES CONNEXION -->
@@ -226,7 +241,9 @@
 
                 <!-- TAB 1 : LISTES DE LA FAMILLE (LES AUTRES ADULTES ET LEURS ENFANTS) -->
                 <div v-if="activeTab === 'others'" class="space-y-6">
-                    <div v-for="group in familyGroups" :key="group.id" class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 hover:border-nordic-gold/30 transition">
+                    <div v-for="group in familyGroups" :key="group.id"
+                         :class="group.isChild ? 'ml-4 sm:ml-10 border-l-4 !border-l-nordic-gold/40' : ''"
+                         class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 hover:border-nordic-gold/30 transition">
                         
                         <!-- EN-TÊTE DU PROFIL (ADULTE OU ENFANT) -->
                         <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-100">
@@ -334,8 +351,9 @@
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-nordic-slate block mb-1">Lien Web (Optionnel)</label>
-                                    <input v-model="newItem.url" type="url" placeholder="https://..." 
+                                    <input v-model="newItem.url" @blur="fetchPreview" type="url" placeholder="https://..."
                                            class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                                    <p v-if="isFetchingPreview" class="text-[11px] text-nordic-muted mt-1">🔎 Recherche de la vignette...</p>
                                 </div>
                             </div>
 
@@ -347,8 +365,11 @@
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-nordic-slate block mb-1">URL de l'image miniature (Optionnel)</label>
-                                    <input v-model="newItem.image_url" type="url" placeholder="https://.../image.jpg" 
-                                           class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                                    <div class="flex gap-2 items-center">
+                                        <input v-model="newItem.image_url" type="url" placeholder="Remplie automatiquement depuis le lien"
+                                               class="flex-1 min-w-0 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                                        <img v-if="newItem.image_url" :src="newItem.image_url" @error="newItem.image_url = ''" class="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0" alt="Aperçu">
+                                    </div>
                                 </div>
                             </div>
 
@@ -373,12 +394,13 @@
                         <div v-if="myChildren.length > 0" class="flex flex-wrap gap-2 mb-4">
                             <span v-for="child in myChildren" :key="child.id" class="inline-flex items-center gap-1.5 bg-nordic-bg text-nordic-pine border border-nordic-gold/30 px-3 py-1.5 rounded-xl text-xs font-bold">
                                 <span>👶 {{ child.name }}</span>
+                                <button @click="removeChild(child)" :title="'Retirer ' + child.name" class="text-nordic-burgundy hover:bg-red-50 rounded-md px-1 leading-none">✕</button>
                             </span>
                         </div>
 
                         <!-- Formulaire rapide d'ajout d'enfant -->
                         <div class="flex gap-2">
-                            <input v-model="newChildName" type="text" placeholder="Prénom de l'enfant..." 
+                            <input v-model="newChildName" @keyup.enter="addChild" type="text" placeholder="Prénom de l'enfant..." 
                                    class="flex-1 p-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-nordic-gold">
                             <button @click="addChild" :disabled="!newChildName" class="bg-slate-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold hover:bg-slate-900 disabled:opacity-40 transition">
                                 + Ajouter l'enfant
@@ -441,7 +463,7 @@
                 
                 <!-- Message personnalisé si déjà réservé (SANS révéler l'acheteur) -->
                 <div v-if="itemToDelete.buyer_id" class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 text-left font-medium">
-                    ⚠️ <strong>Attention :</strong> Un lutin secret a déjà réservé ce cadeau ! Si vous le supprimez, son achat sera annulé.
+                    <strong>Attention, un lutin secret a déjà réservé ce cadeau !</strong> Si vous le supprimez, sa réservation sera perdue.
                 </div>
                 <div v-else class="text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                     Êtes-vous sûr de vouloir retirer <strong>"{{ itemToDelete.title }}"</strong> de la liste ?
@@ -465,15 +487,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             const { createApp, ref, computed, onMounted } = Vue;
 
-            // Clé configurable par défaut ou stockée en localStorage
-            const DEFAULT_SUPABASE_URL = 'https://rzobwjmccavhkouhlcph.supabase.co';
-            const DEFAULT_SUPABASE_KEY = localStorage.getItem('custom_supabase_key') || 'sb_publishable_bBaw-rW5_NuZ5cDUOCLG0A_nasjgpgb';
+            // Configuration Supabase (clé publishable : conçue pour être exposée côté navigateur)
+            const SUPABASE_URL = 'https://rzobwjmccavhkouhlcph.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_bBaw-rW5_NuZ5cDUOCLG0A_nasjgpgb';
+            // Nom de la Edge Function de scraping OpenGraph (voir supabase/functions/og-image)
+            const OG_FUNCTION_NAME = 'og-image';
 
             createApp({
                 setup() {
                     const supabaseClient = ref(null);
-                    const needSupabaseKey = ref(false);
-                    const customKeyInput = ref('');
+                    const isDemoMode = ref(false);
 
                     const users = ref([]);
                     const children = ref([]);
@@ -486,6 +509,9 @@
 
                     const newItem = ref({ targetKey: '', title: '', url: '', notes: '', image_url: '' });
                     const newChildName = ref('');
+                    const newUserName = ref('');
+                    const isCreatingUser = ref(false);
+                    const isFetchingPreview = ref(false);
                     const isAdding = ref(false);
                     const loadingId = ref(null);
                     const itemToDelete = ref(null);
@@ -507,65 +533,94 @@
                         ];
                     };
 
-                    // Initialisation du client Supabase
-                    const initSupabase = () => {
-                        if (DEFAULT_SUPABASE_KEY.startsWith('sb_publishable_') || DEFAULT_SUPABASE_KEY.length > 20) {
-                            try {
-                                supabaseClient.value = supabase.createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
-                                needSupabaseKey.value = false;
-                                fetchAllData();
-                            } catch (e) {
-                                console.warn('Supabase init error, using fallback:', e);
-                                loadFallbackData();
-                            }
-                        } else {
-                            needSupabaseKey.value = true;
-                            loadFallbackData();
-                        }
-                    };
+                    const isOnline = () => supabaseClient.value && !isDemoMode.value;
 
-                    const saveCustomKey = () => {
-                        if (customKeyInput.value.trim()) {
-                            localStorage.setItem('custom_supabase_key', customKeyInput.value.trim());
-                            location.reload();
-                        }
+                    // Remonte les erreurs Supabase à l'utilisateur (RLS, réseau...)
+                    const reportError = (error, action) => {
+                        if (!error) return false;
+                        console.error('Erreur Supabase (' + action + '):', error);
+                        alert('Oups, impossible de ' + action + '. Réessayez dans un instant.');
+                        return true;
                     };
 
                     // Fetch Global des données Supabase
                     const fetchAllData = async () => {
                         if (!supabaseClient.value) return;
 
-                        try {
-                            const { data: uData } = await supabaseClient.value.from('users').select('*').order('name');
-                            const { data: cData } = await supabaseClient.value.from('children').select('*').order('name');
-                            const { data: wData } = await supabaseClient.value.from('wishlist').select('*').order('created_at', { ascending: false });
+                        const [uRes, cRes, wRes] = await Promise.all([
+                            supabaseClient.value.from('users').select('*').order('name'),
+                            supabaseClient.value.from('children').select('*').order('name'),
+                            supabaseClient.value.from('wishlist').select('*').order('created_at', { ascending: false })
+                        ]);
+                        const error = uRes.error || cRes.error || wRes.error;
+                        if (error) throw error;
 
-                            if (uData && uData.length > 0) users.value = uData;
-                            if (cData) children.value = cData;
-                            if (wData) wishlist.value = wData;
-                        } catch (err) {
-                            console.error('Erreur chargement Supabase:', err);
+                        users.value = uRes.data;
+                        children.value = cRes.data;
+                        wishlist.value = wRes.data;
+                    };
+
+                    // Initialisation du client Supabase
+                    const initSupabase = async () => {
+                        try {
+                            supabaseClient.value = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                            await fetchAllData();
+                        } catch (e) {
+                            console.warn('Supabase indisponible, données de démo :', e);
+                            isDemoMode.value = true;
+                            loadFallbackData();
                         }
                     };
 
-                    onMounted(() => {
-                        initSupabase();
-                        // Conserver la session de l'utilisateur en local
+                    const setCurrentUser = (user) => {
+                        currentUser.value = user;
+                        selectedUserId.value = user.id;
+                        localStorage.setItem('noel_user_id', user.id);
+                        newItem.value.targetKey = 'user:' + user.id;
+                    };
+
+                    onMounted(async () => {
+                        // On attend les données avant de restaurer la session locale
+                        await initSupabase();
                         const savedUserId = localStorage.getItem('noel_user_id');
-                        if (savedUserId) {
-                            selectedUserId.value = savedUserId;
-                            const found = users.value.find(u => u.id === savedUserId);
-                            if (found) currentUser.value = found;
-                        }
+                        const found = savedUserId && users.value.find(u => u.id === savedUserId);
+                        if (found) setCurrentUser(found);
                     });
 
                     const login = () => {
                         const found = users.value.find(u => u.id === selectedUserId.value);
-                        if (found) {
-                            currentUser.value = found;
-                            localStorage.setItem('noel_user_id', found.id);
-                            newItem.value.targetKey = 'user:' + found.id;
+                        if (found) setCurrentUser(found);
+                    };
+
+                    // Création d'un profil adulte (ou connexion si le prénom existe déjà)
+                    const createUser = async () => {
+                        const name = newUserName.value.trim();
+                        if (!name || isCreatingUser.value) return;
+
+                        const existing = users.value.find(u => u.name.trim().toLowerCase() === name.toLowerCase());
+                        if (existing) {
+                            if (confirm('Le profil "' + existing.name + '" existe déjà. Se connecter avec ce profil ?')) {
+                                setCurrentUser(existing);
+                                newUserName.value = '';
+                            }
+                            return;
                         }
+
+                        isCreatingUser.value = true;
+                        if (isOnline()) {
+                            const { data, error } = await supabaseClient.value.from('users').insert([{ name }]).select().single();
+                            if (!reportError(error, 'créer le profil')) {
+                                users.value = [...users.value, data].sort((a, b) => a.name.localeCompare(b.name));
+                                setCurrentUser(data);
+                                newUserName.value = '';
+                            }
+                        } else {
+                            const user = { id: 'u_' + Date.now(), name };
+                            users.value.push(user);
+                            setCurrentUser(user);
+                            newUserName.value = '';
+                        }
+                        isCreatingUser.value = false;
                     };
 
                     const logout = () => {
@@ -579,35 +634,47 @@
                         return children.value.filter(c => c.parent_id === currentUser.value.id);
                     });
 
-                    // Regroupement des listes de TOUTE LA FAMILLE (pour l'onglet principal)
-                    const familyGroups = computed(() => {
+                    const childGroup = (c, parentName) => ({
+                        id: 'child:' + c.id,
+                        key: 'child:' + c.id,
+                        name: c.name,
+                        isChild: true,
+                        parentName,
+                        items: wishlist.value.filter(w => w.owner_child_id === c.id)
+                    });
+
+                    // Chaque adulte suivi de ses enfants (listes imbriquées sous le parent)
+                    // includeSelf : afficher aussi la propre liste de l'utilisateur connecté
+                    const buildGroups = (includeSelf) => {
                         if (!currentUser.value) return [];
                         const groups = [];
 
-                        // 1. Les autres adultes
-                        users.value.filter(u => u.id !== currentUser.value.id).forEach(u => {
-                            groups.push({
-                                id: 'user:' + u.id,
-                                name: u.name,
-                                isChild: false,
-                                items: wishlist.value.filter(w => w.owner_user_id === u.id)
-                            });
+                        users.value.forEach(u => {
+                            const isMe = u.id === currentUser.value.id;
+                            if (!isMe || includeSelf) {
+                                groups.push({
+                                    id: 'user:' + u.id,
+                                    key: 'user:' + u.id,
+                                    name: u.name,
+                                    isChild: false,
+                                    isMine: isMe,
+                                    items: wishlist.value.filter(w => w.owner_user_id === u.id)
+                                });
+                            }
+                            // Ses propres enfants restent visibles pour qu'un parent puisse réserver pour eux
+                            children.value.filter(c => c.parent_id === u.id)
+                                .forEach(c => groups.push(childGroup(c, isMe ? u.name + ' (vous)' : u.name)));
                         });
 
-                        // 2. Les enfants des autres (ou ses propres enfants qu'on consulte pour réserver)
-                        children.value.forEach(c => {
-                            const parent = users.value.find(u => u.id === c.parent_id);
-                            groups.push({
-                                id: 'child:' + c.id,
-                                name: c.name,
-                                isChild: true,
-                                parentName: parent ? parent.name : 'Inconnu',
-                                items: wishlist.value.filter(w => w.owner_child_id === c.id)
-                            });
-                        });
+                        // Enfants dont le parent n'existe plus
+                        children.value.filter(c => !users.value.some(u => u.id === c.parent_id))
+                            .forEach(c => groups.push(childGroup(c, 'Inconnu')));
 
                         return groups;
-                    });
+                    };
+
+                    // Listes de TOUTE LA FAMILLE (onglet principal)
+                    const familyGroups = computed(() => buildGroups(false));
 
                     // Les propres cartes de l'utilisateur (Ses idées + Ses enfants)
                     const myOwnGroups = computed(() => {
@@ -637,10 +704,35 @@
                         return url.startsWith('http://') || url.startsWith('https://') ? url : 'https://' + url;
                     };
 
+                    // Récupère automatiquement la vignette OpenGraph du lien via la Edge Function
+                    const fetchPreview = async () => {
+                        const url = newItem.value.url.trim();
+                        if (!url || newItem.value.image_url || !isOnline()) return;
+
+                        isFetchingPreview.value = true;
+                        try {
+                            const { data, error } = await supabaseClient.value.functions.invoke(OG_FUNCTION_NAME, {
+                                body: { url: formatUrl(url) }
+                            });
+                            if (error) throw error;
+                            // L'utilisateur a pu changer le lien ou saisir une image entre-temps
+                            if (newItem.value.url.trim() === url && !newItem.value.image_url) {
+                                if (data?.image) newItem.value.image_url = data.image;
+                                if (data?.title && !newItem.value.title) newItem.value.title = data.title;
+                            }
+                        } catch (e) {
+                            // Fonction non déployée ou site bloquant : on reste silencieux, la vignette est optionnelle
+                            console.warn('Vignette indisponible :', e);
+                        }
+                        isFetchingPreview.value = false;
+                    };
+
                     // Ajout d'une idée de cadeau
                     const addGift = async () => {
                         if (!newItem.value.title || !currentUser.value) return;
                         isAdding.value = true;
+                        // Dernière chance de récupérer la vignette si le champ n'a pas perdu le focus
+                        if (!newItem.value.image_url) await fetchPreview();
 
                         const [type, id] = newItem.value.targetKey.split(':');
                         const payload = {
@@ -653,8 +745,12 @@
                             buyer_id: null
                         };
 
-                        if (supabaseClient.value && !needSupabaseKey.value) {
-                            await supabaseClient.value.from('wishlist').insert([payload]);
+                        if (isOnline()) {
+                            const { error } = await supabaseClient.value.from('wishlist').insert([payload]);
+                            if (reportError(error, 'ajouter le cadeau')) {
+                                isAdding.value = false;
+                                return;
+                            }
                             await fetchAllData();
                         } else {
                             // Fallback local
@@ -678,8 +774,9 @@
                             parent_id: currentUser.value.id
                         };
 
-                        if (supabaseClient.value && !needSupabaseKey.value) {
-                            await supabaseClient.value.from('children').insert([payload]);
+                        if (isOnline()) {
+                            const { error } = await supabaseClient.value.from('children').insert([payload]);
+                            if (reportError(error, "ajouter l'enfant")) return;
                             await fetchAllData();
                         } else {
                             payload.id = 'c_' + Date.now();
@@ -689,11 +786,43 @@
                         newChildName.value = '';
                     };
 
+                    // Suppression d'un enfant (et de sa liste)
+                    const removeChild = async (child) => {
+                        const items = wishlist.value.filter(w => w.owner_child_id === child.id);
+                        let message = 'Retirer ' + child.name + ' et sa liste (' + items.length + ' idée(s)) ?';
+                        if (items.some(w => w.buyer_id)) {
+                            message += '\n\nAttention, un lutin secret a déjà réservé au moins un cadeau de cette liste !';
+                        }
+                        if (!confirm(message)) return;
+
+                        if (isOnline()) {
+                            const { error: wError } = await supabaseClient.value.from('wishlist').delete().eq('owner_child_id', child.id);
+                            if (reportError(wError, 'supprimer la liste de ' + child.name)) return;
+                            const { error } = await supabaseClient.value.from('children').delete().eq('id', child.id);
+                            reportError(error, 'supprimer ' + child.name);
+                            await fetchAllData();
+                        } else {
+                            wishlist.value = wishlist.value.filter(w => w.owner_child_id !== child.id);
+                            children.value = children.value.filter(c => c.id !== child.id);
+                        }
+
+                        if (newItem.value.targetKey === 'child:' + child.id) {
+                            newItem.value.targetKey = 'user:' + currentUser.value.id;
+                        }
+                    };
+
                     // Réserver / Prendre un cadeau
                     const takeItem = async (itemId) => {
                         loadingId.value = itemId;
-                        if (supabaseClient.value && !needSupabaseKey.value) {
-                            await supabaseClient.value.from('wishlist').update({ buyer_id: currentUser.value.id }).eq('id', itemId);
+                        if (isOnline()) {
+                            // Le filtre buyer_id IS NULL évite d'écraser une réservation faite entre-temps
+                            const { data, error } = await supabaseClient.value.from('wishlist')
+                                .update({ buyer_id: currentUser.value.id })
+                                .eq('id', itemId).is('buyer_id', null)
+                                .select();
+                            if (!reportError(error, 'réserver ce cadeau') && data.length === 0) {
+                                alert('Trop tard : un autre lutin vient de réserver ce cadeau !');
+                            }
                             await fetchAllData();
                         } else {
                             const found = wishlist.value.find(w => w.id === itemId);
@@ -705,8 +834,11 @@
                     // Annuler une réservation
                     const releaseItem = async (itemId) => {
                         loadingId.value = itemId;
-                        if (supabaseClient.value && !needSupabaseKey.value) {
-                            await supabaseClient.value.from('wishlist').update({ buyer_id: null }).eq('id', itemId);
+                        if (isOnline()) {
+                            const { error } = await supabaseClient.value.from('wishlist')
+                                .update({ buyer_id: null })
+                                .eq('id', itemId).eq('buyer_id', currentUser.value.id);
+                            reportError(error, 'annuler la réservation');
                             await fetchAllData();
                         } else {
                             const found = wishlist.value.find(w => w.id === itemId);
@@ -726,8 +858,9 @@
                         loadingId.value = targetId;
                         itemToDelete.value = null;
 
-                        if (supabaseClient.value && !needSupabaseKey.value) {
-                            await supabaseClient.value.from('wishlist').delete().eq('id', targetId);
+                        if (isOnline()) {
+                            const { error } = await supabaseClient.value.from('wishlist').delete().eq('id', targetId);
+                            reportError(error, 'supprimer le cadeau');
                             await fetchAllData();
                         } else {
                             wishlist.value = wishlist.value.filter(w => w.id !== targetId);
@@ -741,27 +874,19 @@
                         isPrintMode.value = !isPrintMode.value;
                     };
 
-                    const printData = computed(() => {
-                        const list = [];
-                        users.value.forEach(u => {
-                            const items = wishlist.value.filter(w => w.owner_user_id === u.id);
-                            if (items.length > 0) list.push({ name: u.name, isChild: false, items });
-                        });
-                        children.value.forEach(c => {
-                            const parent = users.value.find(u => u.id === c.parent_id);
-                            const items = wishlist.value.filter(w => w.owner_child_id === c.id);
-                            if (items.length > 0) list.push({ name: c.name, isChild: true, parentName: parent ? parent.name : '', items });
-                        });
-                        return list;
-                    });
+                    const printPage = () => window.print();
+
+                    // Récapitulatif imprimable : toutes les listes (libres et réservées), enfants sous leurs parents
+                    const printData = computed(() => buildGroups(true).filter(g => g.items.length > 0));
 
                     return {
-                        needSupabaseKey, customKeyInput, saveCustomKey,
+                        isDemoMode,
                         users, children, wishlist, currentUser, selectedUserId, activeTab,
-                        isPrintMode, newItem, newChildName, isAdding, loadingId, itemToDelete,
+                        isPrintMode, newItem, newChildName, newUserName, isCreatingUser, isFetchingPreview,
+                        isAdding, loadingId, itemToDelete,
                         myChildren, familyGroups, myOwnGroups, printData,
-                        login, logout, formatUrl, addGift, addChild, takeItem, releaseItem,
-                        promptRemove, executeRemove, togglePrintMode
+                        login, logout, createUser, formatUrl, fetchPreview, addGift, addChild, removeChild,
+                        takeItem, releaseItem, promptRemove, executeRemove, togglePrintMode, printPage
                     };
                 }
             }).mount('#app');
