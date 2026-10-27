@@ -58,11 +58,10 @@
         }
         [v-cloak] { display: none !important; }
 
-        /* Styles d'impression pour le Mode Maman */
+        /* Styles d'impression (onglet Récap imprimable) */
         @media print {
             .no-print { display: none !important; }
             body { background-color: white !important; color: black !important; padding: 0 !important; }
-            .print-only { display: block !important; }
             .print-card { page-break-inside: avoid; border: 1px solid #ccc !important; box-shadow: none !important; }
         }
 
@@ -110,61 +109,8 @@
             <p class="text-nordic-gold font-medium text-sm sm:text-base mt-1 italic">Les douces envies & petites attentions de la famille</p>
         </header>
 
-        <!-- Vue Imprimable Récapitulative (Uniquement visible à l'impression ou Mode Maman) -->
-        <div v-if="isPrintMode" class="print-only my-6 bg-white p-8 rounded-2xl border border-slate-200">
-            <div class="flex justify-between items-center border-b pb-4 mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Répertoire des Cadeaux de Noël 🎄</h1>
-                    <p class="text-xs text-slate-500">Document imprimé pour les courses familiales</p>
-                </div>
-                <div class="no-print flex gap-2">
-                    <button @click="printPage" class="text-xs bg-nordic-pine hover:bg-nordic-pineLight text-white px-3 py-1.5 rounded-lg font-bold">
-                        🖨️ Imprimer
-                    </button>
-                    <button @click="togglePrintMode" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
-                        ❌ Quitter
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="printData.length === 0" class="text-slate-400 italic text-sm text-center py-6">
-                Aucune liste pour le moment ❄️
-            </div>
-
-            <div class="space-y-6">
-                <div v-for="personGroup in printData" :key="personGroup.key" :class="{ 'ml-6 border-l-4 !border-l-slate-300': personGroup.isChild }" class="print-card p-4 rounded-xl bg-slate-50">
-                    <h2 class="font-bold text-lg text-slate-800 border-b pb-1 mb-3">
-                        🎁 Liste de {{ personGroup.name }} <span v-if="personGroup.isChild" class="text-xs font-normal text-slate-500">(Enfant de {{ personGroup.parentName }})</span>
-                    </h2>
-                    <ul class="space-y-2">
-                        <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between text-sm py-1 border-b border-slate-200/60 last:border-0">
-                            <div>
-                                <strong class="text-slate-900">{{ item.title }}</strong>
-                                <span v-if="item.notes" class="text-slate-500 text-xs block italic">{{ item.notes }}</span>
-                            </div>
-                            <div class="text-right">
-                                <!-- Pas de statut sur sa propre liste : on garde la surprise -->
-                                <span v-if="personGroup.isMine" class="text-slate-400 text-xs italic">
-                                    🤫 Surprise
-                                </span>
-                                <span v-else-if="item.buyer_id === currentUser.id" class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">
-                                    ✅ Réservé par VOUS
-                                </span>
-                                <span v-else-if="item.buyer_id" class="text-slate-600 font-medium bg-slate-200 px-2 py-0.5 rounded text-xs">
-                                    🔒 Réservé par un autre
-                                </span>
-                                <span v-else class="text-amber-700 font-medium bg-amber-100 px-2 py-0.5 rounded text-xs">
-                                    💡 Disponible
-                                </span>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- APP CONTENT (Masqué en mode impression pure) -->
-        <div v-if="!isPrintMode">
+        <!-- APP CONTENT -->
+        <div>
 
             <!-- ÉCRAN DE CONNEXION / SELECTION UTILISATEUR -->
             <div v-if="!currentUser" class="bg-white/90 backdrop-blur-md rounded-3xl p-6 sm:p-10 shadow-xl border border-nordic-gold/20 max-w-md mx-auto text-center my-6">
@@ -183,26 +129,13 @@
                         class="w-full bg-nordic-pine hover:bg-nordic-pineLight text-white p-4 rounded-2xl font-bold text-base shadow-md hover:shadow-lg disabled:opacity-40 transition duration-200 transform active:scale-98">
                     Accéder aux listes
                 </button>
-
-                <!-- CRÉER UN PROFIL (si le prénom n'existe pas encore) -->
-                <div class="mt-6 pt-5 border-t border-slate-100 text-left">
-                    <p class="text-xs font-bold text-nordic-slate uppercase tracking-wider mb-2">Pas encore dans la liste ? Créer un profil</p>
-                    <div class="flex gap-2">
-                        <input v-model="newUserName" @keyup.enter="createUser" type="text" placeholder="Votre prénom..."
-                               class="flex-1 min-w-0 p-3 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-nordic-gold">
-                        <button @click="createUser" :disabled="!newUserName.trim() || isCreatingUser"
-                                class="bg-nordic-gold hover:bg-nordic-goldHover text-white text-xs px-4 py-3 rounded-xl font-bold disabled:opacity-40 transition shrink-0">
-                            {{ isCreatingUser ? '...' : '✨ Créer' }}
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <!-- APPLICATION INTERACTIVE APRES CONNEXION -->
             <div v-else class="space-y-6">
                 
                 <!-- BARRE NAV / INFOS UTILISATEUR -->
-                <div class="flex flex-wrap justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-nordic-gold/20 gap-3">
+                <div class="no-print flex flex-wrap justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-nordic-gold/20 gap-3">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-nordic-pine/10 text-nordic-pine flex items-center justify-center font-bold text-lg">
                             {{ currentUser.name.charAt(0) }}
@@ -214,10 +147,6 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <!-- Bouton Mode Maman (Impression) -->
-                        <button @click="togglePrintMode" class="bg-nordic-bg hover:bg-slate-200 text-nordic-pine text-xs font-semibold py-2 px-3 rounded-xl border border-slate-200 transition flex items-center gap-1.5">
-                            <span>🖨️</span> Mode Maman (Imprimer)
-                        </button>
                         <!-- Changer d'utilisateur -->
                         <button @click="logout" class="bg-slate-100 hover:bg-slate-200 text-nordic-slate text-xs font-medium py-2 px-3 rounded-xl transition">
                             Changer 🔄
@@ -226,7 +155,7 @@
                 </div>
 
                 <!-- ONGLETS NAVIGATION -->
-                <div class="flex bg-white/60 p-1 rounded-2xl border border-nordic-gold/20 shadow-sm">
+                <div class="no-print flex bg-white/60 p-1 rounded-2xl border border-nordic-gold/20 shadow-sm">
                     <button @click="activeTab = 'others'" 
                             :class="activeTab === 'others' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'" 
                             class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
@@ -236,6 +165,11 @@
                             :class="activeTab === 'mine' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'" 
                             class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
                         <span>📝</span> Ma liste & Enfants
+                    </button>
+                    <button @click="activeTab = 'print'"
+                            :class="activeTab === 'print' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'"
+                            class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
+                        <span>🖨️</span> Récap imprimable
                     </button>
                 </div>
 
@@ -381,33 +315,6 @@
                         </div>
                     </div>
 
-                    <!-- GESTION DES ENFANTS (POUR CHARLOTTE OU TOUT AUTRE PARENT) -->
-                    <div class="bg-white/80 rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 class="font-bold text-base text-nordic-pine">👶 Mes Enfants</h3>
-                                <p class="text-xs text-nordic-slate">Ajoutez des profils pour vos enfants afin de gérer leurs listes</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Liste des enfants existants -->
-                        <div v-if="myChildren.length > 0" class="flex flex-wrap gap-2 mb-4">
-                            <span v-for="child in myChildren" :key="child.id" class="inline-flex items-center gap-1.5 bg-nordic-bg text-nordic-pine border border-nordic-gold/30 px-3 py-1.5 rounded-xl text-xs font-bold">
-                                <span>👶 {{ child.name }}</span>
-                                <button @click="removeChild(child)" :title="'Retirer ' + child.name" class="text-nordic-burgundy hover:bg-red-50 rounded-md px-1 leading-none">✕</button>
-                            </span>
-                        </div>
-
-                        <!-- Formulaire rapide d'ajout d'enfant -->
-                        <div class="flex gap-2">
-                            <input v-model="newChildName" @keyup.enter="addChild" type="text" placeholder="Prénom de l'enfant..." 
-                                   class="flex-1 p-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-nordic-gold">
-                            <button @click="addChild" :disabled="!newChildName" class="bg-slate-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold hover:bg-slate-900 disabled:opacity-40 transition">
-                                + Ajouter l'enfant
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- AFFICHAGE ET GESTION DE SES PROPRES LISTES (SOI-MÊME + ENFANTS) -->
                     <div class="space-y-4">
                         <div v-for="myGroup in myOwnGroups" :key="myGroup.key" class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
@@ -449,6 +356,50 @@
                         </div>
                     </div>
 
+                </div>
+
+                <!-- TAB 3 : RÉCAP IMPRIMABLE (toutes les listes, libres et réservées) -->
+                <div v-if="activeTab === 'print'" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="border-b pb-4 mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900">Répertoire des Cadeaux de Noël 🎄</h2>
+                        <p class="text-xs text-slate-500">Récapitulatif pour les courses familiales</p>
+                        <p class="no-print text-xs text-nordic-gold mt-2">💡 Pour imprimer cet onglet : Ctrl + P (ou ⌘ + P sur Mac)</p>
+                    </div>
+
+                    <div v-if="printData.length === 0" class="text-slate-400 italic text-sm text-center py-6">
+                        Aucune liste pour le moment ❄️
+                    </div>
+
+                    <div class="space-y-6">
+                        <div v-for="personGroup in printData" :key="personGroup.key" :class="{ 'ml-6 border-l-4 !border-l-slate-300': personGroup.isChild }" class="print-card p-4 rounded-xl bg-slate-50">
+                            <h3 class="font-bold text-lg text-slate-800 border-b pb-1 mb-3">
+                                🎁 Liste de {{ personGroup.name }} <span v-if="personGroup.isChild" class="text-xs font-normal text-slate-500">(Enfant de {{ personGroup.parentName }})</span>
+                            </h3>
+                            <ul class="space-y-2">
+                                <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between gap-3 text-sm py-1 border-b border-slate-200/60 last:border-0">
+                                    <div>
+                                        <strong class="text-slate-900">{{ item.title }}</strong>
+                                        <span v-if="item.notes" class="text-slate-500 text-xs block italic">{{ item.notes }}</span>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <!-- Pas de statut sur sa propre liste : on garde la surprise -->
+                                        <span v-if="personGroup.isMine" class="text-slate-400 text-xs italic">
+                                            🤫 Surprise
+                                        </span>
+                                        <span v-else-if="item.buyer_id === currentUser.id" class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">
+                                            ✅ Réservé par VOUS
+                                        </span>
+                                        <span v-else-if="item.buyer_id" class="text-slate-600 font-medium bg-slate-200 px-2 py-0.5 rounded text-xs">
+                                            🔒 Réservé par un autre
+                                        </span>
+                                        <span v-else class="text-amber-700 font-medium bg-amber-100 px-2 py-0.5 rounded text-xs">
+                                            💡 Disponible
+                                        </span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -505,12 +456,8 @@
                     const currentUser = ref(null);
                     const selectedUserId = ref('');
                     const activeTab = ref('others');
-                    const isPrintMode = ref(false);
 
                     const newItem = ref({ targetKey: '', title: '', url: '', notes: '', image_url: '' });
-                    const newChildName = ref('');
-                    const newUserName = ref('');
-                    const isCreatingUser = ref(false);
                     const isFetchingPreview = ref(false);
                     const isAdding = ref(false);
                     const loadingId = ref(null);
@@ -590,37 +537,6 @@
                     const login = () => {
                         const found = users.value.find(u => u.id === selectedUserId.value);
                         if (found) setCurrentUser(found);
-                    };
-
-                    // Création d'un profil adulte (ou connexion si le prénom existe déjà)
-                    const createUser = async () => {
-                        const name = newUserName.value.trim();
-                        if (!name || isCreatingUser.value) return;
-
-                        const existing = users.value.find(u => u.name.trim().toLowerCase() === name.toLowerCase());
-                        if (existing) {
-                            if (confirm('Le profil "' + existing.name + '" existe déjà. Se connecter avec ce profil ?')) {
-                                setCurrentUser(existing);
-                                newUserName.value = '';
-                            }
-                            return;
-                        }
-
-                        isCreatingUser.value = true;
-                        if (isOnline()) {
-                            const { data, error } = await supabaseClient.value.from('users').insert([{ name }]).select().single();
-                            if (!reportError(error, 'créer le profil')) {
-                                users.value = [...users.value, data].sort((a, b) => a.name.localeCompare(b.name));
-                                setCurrentUser(data);
-                                newUserName.value = '';
-                            }
-                        } else {
-                            const user = { id: 'u_' + Date.now(), name };
-                            users.value.push(user);
-                            setCurrentUser(user);
-                            newUserName.value = '';
-                        }
-                        isCreatingUser.value = false;
                     };
 
                     const logout = () => {
@@ -765,52 +681,6 @@
                         isAdding.value = false;
                     };
 
-                    // Ajout d'un enfant pour le parent connecté
-                    const addChild = async () => {
-                        if (!newChildName.value.trim() || !currentUser.value) return;
-                        
-                        const payload = {
-                            name: newChildName.value.trim(),
-                            parent_id: currentUser.value.id
-                        };
-
-                        if (isOnline()) {
-                            const { error } = await supabaseClient.value.from('children').insert([payload]);
-                            if (reportError(error, "ajouter l'enfant")) return;
-                            await fetchAllData();
-                        } else {
-                            payload.id = 'c_' + Date.now();
-                            children.value.push(payload);
-                        }
-
-                        newChildName.value = '';
-                    };
-
-                    // Suppression d'un enfant (et de sa liste)
-                    const removeChild = async (child) => {
-                        const items = wishlist.value.filter(w => w.owner_child_id === child.id);
-                        let message = 'Retirer ' + child.name + ' et sa liste (' + items.length + ' idée(s)) ?';
-                        if (items.some(w => w.buyer_id)) {
-                            message += '\n\nAttention, un lutin secret a déjà réservé au moins un cadeau de cette liste !';
-                        }
-                        if (!confirm(message)) return;
-
-                        if (isOnline()) {
-                            const { error: wError } = await supabaseClient.value.from('wishlist').delete().eq('owner_child_id', child.id);
-                            if (reportError(wError, 'supprimer la liste de ' + child.name)) return;
-                            const { error } = await supabaseClient.value.from('children').delete().eq('id', child.id);
-                            reportError(error, 'supprimer ' + child.name);
-                            await fetchAllData();
-                        } else {
-                            wishlist.value = wishlist.value.filter(w => w.owner_child_id !== child.id);
-                            children.value = children.value.filter(c => c.id !== child.id);
-                        }
-
-                        if (newItem.value.targetKey === 'child:' + child.id) {
-                            newItem.value.targetKey = 'user:' + currentUser.value.id;
-                        }
-                    };
-
                     // Réserver / Prendre un cadeau
                     const takeItem = async (itemId) => {
                         loadingId.value = itemId;
@@ -869,24 +739,16 @@
                         loadingId.value = null;
                     };
 
-                    // MODE MAMAN (Imprimable)
-                    const togglePrintMode = () => {
-                        isPrintMode.value = !isPrintMode.value;
-                    };
-
-                    const printPage = () => window.print();
-
                     // Récapitulatif imprimable : toutes les listes (libres et réservées), enfants sous leurs parents
                     const printData = computed(() => buildGroups(true).filter(g => g.items.length > 0));
 
                     return {
                         isDemoMode,
                         users, children, wishlist, currentUser, selectedUserId, activeTab,
-                        isPrintMode, newItem, newChildName, newUserName, isCreatingUser, isFetchingPreview,
-                        isAdding, loadingId, itemToDelete,
+                        newItem, isFetchingPreview, isAdding, loadingId, itemToDelete,
                         myChildren, familyGroups, myOwnGroups, printData,
-                        login, logout, createUser, formatUrl, fetchPreview, addGift, addChild, removeChild,
-                        takeItem, releaseItem, promptRemove, executeRemove, togglePrintMode, printPage
+                        login, logout, formatUrl, fetchPreview, addGift,
+                        takeItem, releaseItem, promptRemove, executeRemove
                     };
                 }
             }).mount('#app');
