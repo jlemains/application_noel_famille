@@ -173,12 +173,16 @@
                     </button>
                 </div>
 
-                <!-- TAB 1 : LISTES DE LA FAMILLE (LES AUTRES ADULTES ET LEURS ENFANTS) -->
-                <div v-if="activeTab === 'others'" class="space-y-6">
-                    <div v-for="group in familyGroups" :key="group.id"
-                         :class="group.isChild ? 'ml-4 sm:ml-10 border-l-4 !border-l-nordic-gold/40' : ''"
+                <!-- TAB 1 : LISTES DE LA FAMILLE (SECTION ADULTES PUIS SECTION ENFANTS) -->
+                <div v-if="activeTab === 'others'" class="space-y-8">
+                  <section v-for="section in familySections" :key="section.key" class="space-y-6">
+                    <h2 class="text-xl font-bold text-nordic-pine flex items-center gap-2 px-1">
+                        <span>{{ section.title }}</span>
+                        <span class="text-xs font-sans font-medium text-nordic-muted">({{ section.groups.length }})</span>
+                    </h2>
+                    <div v-for="group in section.groups" :key="group.id"
                          class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 hover:border-nordic-gold/30 transition">
-                        
+
                         <!-- EN-TÊTE DU PROFIL (ADULTE OU ENFANT) -->
                         <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-100">
                             <div>
@@ -186,9 +190,6 @@
                                     <span>{{ group.isChild ? '👶' : '🎄' }}</span>
                                     <span>{{ group.name }}</span>
                                 </h3>
-                                <p v-if="group.isChild" class="text-xs text-nordic-gold font-medium mt-0.5">
-                                    Enfant de <strong class="text-nordic-pine">{{ group.parentName }}</strong>
-                                </p>
                             </div>
                             <span class="text-xs bg-nordic-bg text-nordic-slate font-medium px-3 py-1 rounded-full border border-slate-200">
                                 {{ group.items.length }} idée(s)
@@ -254,6 +255,7 @@
                             </div>
                         </div>
                     </div>
+                  </section>
                 </div>
 
                 <!-- TAB 2 : MA LISTE & ENFANTS (AJOUT ET GESTION) -->
@@ -366,14 +368,15 @@
                         <p class="no-print text-xs text-nordic-gold mt-2">💡 Pour imprimer cet onglet : Ctrl + P (ou ⌘ + P sur Mac)</p>
                     </div>
 
-                    <div v-if="printData.length === 0" class="text-slate-400 italic text-sm text-center py-6">
+                    <div v-if="printSections.length === 0" class="text-slate-400 italic text-sm text-center py-6">
                         Aucune liste pour le moment ❄️
                     </div>
 
-                    <div class="space-y-6">
-                        <div v-for="personGroup in printData" :key="personGroup.key" :class="{ 'ml-6 border-l-4 !border-l-slate-300': personGroup.isChild }" class="print-card p-4 rounded-xl bg-slate-50">
+                    <section v-for="section in printSections" :key="section.key" class="space-y-6 mb-8 last:mb-0">
+                        <h2 class="text-xl font-bold text-slate-900 border-b-2 border-slate-300 pb-1">{{ section.title }}</h2>
+                        <div v-for="personGroup in section.groups" :key="personGroup.key" class="print-card p-4 rounded-xl bg-slate-50">
                             <h3 class="font-bold text-lg text-slate-800 border-b pb-1 mb-3">
-                                🎁 Liste de {{ personGroup.name }} <span v-if="personGroup.isChild" class="text-xs font-normal text-slate-500">(Enfant de {{ personGroup.parentName }})</span>
+                                🎁 Liste de {{ personGroup.name }}
                             </h3>
                             <ul class="space-y-2">
                                 <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between gap-3 text-sm py-1 border-b border-slate-200/60 last:border-0">
@@ -399,7 +402,7 @@
                                 </li>
                             </ul>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
             </div>
@@ -451,8 +454,9 @@
 
                     const users = ref([]);
                     const children = ref([]);
+                    const childParents = ref([]); // liens enfant <-> parents (table child_parents)
                     const wishlist = ref([]);
-                    
+
                     const currentUser = ref(null);
                     const selectedUserId = ref('');
                     const activeTab = ref('others');
@@ -471,8 +475,14 @@
                             { id: 'u3', name: 'Thomas' }
                         ];
                         children.value = [
-                            { id: 'c1', parent_id: 'u1', name: 'Léo' },
-                            { id: 'c2', parent_id: 'u1', name: 'Maya' }
+                            { id: 'c1', name: 'Léo' },
+                            { id: 'c2', name: 'Maya' }
+                        ];
+                        childParents.value = [
+                            { child_id: 'c1', parent_id: 'u1' },
+                            { child_id: 'c1', parent_id: 'u3' },
+                            { child_id: 'c2', parent_id: 'u1' },
+                            { child_id: 'c2', parent_id: 'u3' }
                         ];
                         wishlist.value = [
                             { id: 'w1', owner_user_id: 'u2', owner_child_id: null, title: 'Livre de cuisine Nordique', url: 'https://example.com', buyer_id: null, notes: 'Édition 2024' },
@@ -494,16 +504,18 @@
                     const fetchAllData = async () => {
                         if (!supabaseClient.value) return;
 
-                        const [uRes, cRes, wRes] = await Promise.all([
+                        const [uRes, cRes, cpRes, wRes] = await Promise.all([
                             supabaseClient.value.from('users').select('*').order('name'),
                             supabaseClient.value.from('children').select('*').order('name'),
+                            supabaseClient.value.from('child_parents').select('child_id, parent_id'),
                             supabaseClient.value.from('wishlist').select('*').order('created_at', { ascending: false })
                         ]);
-                        const error = uRes.error || cRes.error || wRes.error;
+                        const error = uRes.error || cRes.error || cpRes.error || wRes.error;
                         if (error) throw error;
 
                         users.value = uRes.data;
                         children.value = cRes.data;
+                        childParents.value = cpRes.data;
                         wishlist.value = wRes.data;
                     };
 
@@ -544,53 +556,48 @@
                         localStorage.removeItem('noel_user_id');
                     };
 
-                    // Les enfants du parent connecté
+                    // Les enfants du parent connecté (un enfant peut avoir deux parents via child_parents)
                     const myChildren = computed(() => {
                         if (!currentUser.value) return [];
-                        return children.value.filter(c => c.parent_id === currentUser.value.id);
+                        const myChildIds = new Set(childParents.value
+                            .filter(link => link.parent_id === currentUser.value.id)
+                            .map(link => link.child_id));
+                        return children.value.filter(c => myChildIds.has(c.id));
                     });
 
-                    const childGroup = (c, parentName) => ({
-                        id: 'child:' + c.id,
-                        key: 'child:' + c.id,
-                        name: c.name,
-                        isChild: true,
-                        parentName,
-                        items: wishlist.value.filter(w => w.owner_child_id === c.id)
-                    });
-
-                    // Chaque adulte suivi de ses enfants (listes imbriquées sous le parent)
+                    // Une section "Adultes" puis une section "Enfants", tout le monde au même niveau
                     // includeSelf : afficher aussi la propre liste de l'utilisateur connecté
-                    const buildGroups = (includeSelf) => {
+                    const buildSections = (includeSelf) => {
                         if (!currentUser.value) return [];
-                        const groups = [];
 
-                        users.value.forEach(u => {
-                            const isMe = u.id === currentUser.value.id;
-                            if (!isMe || includeSelf) {
-                                groups.push({
-                                    id: 'user:' + u.id,
-                                    key: 'user:' + u.id,
-                                    name: u.name,
-                                    isChild: false,
-                                    isMine: isMe,
-                                    items: wishlist.value.filter(w => w.owner_user_id === u.id)
-                                });
-                            }
-                            // Ses propres enfants restent visibles pour qu'un parent puisse réserver pour eux
-                            children.value.filter(c => c.parent_id === u.id)
-                                .forEach(c => groups.push(childGroup(c, isMe ? u.name + ' (vous)' : u.name)));
-                        });
+                        const adults = users.value
+                            .filter(u => includeSelf || u.id !== currentUser.value.id)
+                            .map(u => ({
+                                id: 'user:' + u.id,
+                                key: 'user:' + u.id,
+                                name: u.name,
+                                isChild: false,
+                                isMine: u.id === currentUser.value.id,
+                                items: wishlist.value.filter(w => w.owner_user_id === u.id)
+                            }));
 
-                        // Enfants dont le parent n'existe plus
-                        children.value.filter(c => !users.value.some(u => u.id === c.parent_id))
-                            .forEach(c => groups.push(childGroup(c, 'Inconnu')));
+                        // Tous les enfants, y compris les siens, pour pouvoir réserver pour eux
+                        const kids = children.value.map(c => ({
+                            id: 'child:' + c.id,
+                            key: 'child:' + c.id,
+                            name: c.name,
+                            isChild: true,
+                            items: wishlist.value.filter(w => w.owner_child_id === c.id)
+                        }));
 
-                        return groups;
+                        return [
+                            { key: 'adults', title: '🎄 Adultes', groups: adults },
+                            { key: 'children', title: '👶 Enfants', groups: kids }
+                        ].filter(s => s.groups.length > 0);
                     };
 
                     // Listes de TOUTE LA FAMILLE (onglet principal)
-                    const familyGroups = computed(() => buildGroups(false));
+                    const familySections = computed(() => buildSections(false));
 
                     // Les propres cartes de l'utilisateur (Ses idées + Ses enfants)
                     const myOwnGroups = computed(() => {
@@ -739,14 +746,16 @@
                         loadingId.value = null;
                     };
 
-                    // Récapitulatif imprimable : toutes les listes (libres et réservées), enfants sous leurs parents
-                    const printData = computed(() => buildGroups(true).filter(g => g.items.length > 0));
+                    // Récapitulatif imprimable : toutes les listes (libres et réservées), en sections Adultes / Enfants
+                    const printSections = computed(() => buildSections(true)
+                        .map(s => ({ ...s, groups: s.groups.filter(g => g.items.length > 0) }))
+                        .filter(s => s.groups.length > 0));
 
                     return {
                         isDemoMode,
                         users, children, wishlist, currentUser, selectedUserId, activeTab,
                         newItem, isFetchingPreview, isAdding, loadingId, itemToDelete,
-                        myChildren, familyGroups, myOwnGroups, printData,
+                        myChildren, familySections, myOwnGroups, printSections,
                         login, logout, formatUrl, fetchPreview, addGift,
                         takeItem, releaseItem, promptRemove, executeRemove
                     };
