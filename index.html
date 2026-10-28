@@ -60,9 +60,12 @@
 
         /* Styles d'impression (onglet Récap imprimable) */
         @media print {
+            @page { margin: 1cm; }
             .no-print { display: none !important; }
-            body { background-color: white !important; color: black !important; padding: 0 !important; }
-            .print-card { page-break-inside: avoid; border: 1px solid #ccc !important; box-shadow: none !important; }
+            body { background-color: white !important; color: black !important; padding: 0 !important; font-size: 11px; }
+            #app { max-width: none !important; padding: 0 !important; }
+            .print-recap { padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+            .print-card { break-inside: avoid; }
         }
 
         /* Animation Flocon subtile */
@@ -105,7 +108,7 @@
             <div class="inline-flex items-center justify-center p-3 bg-white/80 rounded-full shadow-sm mb-3 border border-nordic-gold/20">
                 <span class="text-2xl">✨</span>
             </div>
-            <h1 class="text-3xl sm:text-5xl font-bold text-nordic-pine tracking-tight">Esprit de Noël</h1>
+            <h1 class="text-3xl sm:text-5xl font-bold text-nordic-pine tracking-tight">Joyeux Noël</h1>
             <p class="text-nordic-gold font-medium text-sm sm:text-base mt-1 italic">Les douces envies & petites attentions de la famille</p>
         </header>
 
@@ -211,13 +214,7 @@
                                  }" 
                                  class="p-4 rounded-2xl border transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                 
-                                <div class="flex gap-3 items-start flex-1">
-                                    <!-- Miniature si valide / SVG fallback -->
-                                    <div class="w-12 h-12 rounded-xl bg-nordic-bg border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
-                                        <img v-if="item.image_url" :src="item.image_url" @error="item.image_url = null" class="w-full h-full object-cover" alt="Cadeau">
-                                        <span v-else class="text-xl">🎁</span>
-                                    </div>
-
+                                <div class="flex-1">
                                     <div class="space-y-1">
                                         <div class="font-semibold text-slate-800 text-sm sm:text-base flex items-center gap-2 flex-wrap">
                                             <span>{{ item.title }}</span>
@@ -287,26 +284,15 @@
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-nordic-slate block mb-1">Lien Web (Optionnel)</label>
-                                    <input v-model="newItem.url" @blur="fetchPreview" type="url" placeholder="https://..."
+                                    <input v-model="newItem.url" type="url" placeholder="https://..."
                                            class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
-                                    <p v-if="isFetchingPreview" class="text-[11px] text-nordic-muted mt-1">🔎 Recherche de la vignette...</p>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="text-xs font-bold text-nordic-slate block mb-1">Précisions (Taille, couleur...)</label>
-                                    <input v-model="newItem.notes" type="text" placeholder="Ex: Taille M, édition collector..." 
-                                           class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-nordic-slate block mb-1">URL de l'image miniature (Optionnel)</label>
-                                    <div class="flex gap-2 items-center">
-                                        <input v-model="newItem.image_url" type="url" placeholder="Remplie automatiquement depuis le lien"
-                                               class="flex-1 min-w-0 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
-                                        <img v-if="newItem.image_url" :src="newItem.image_url" @error="newItem.image_url = ''" class="w-11 h-11 rounded-lg object-cover border border-slate-200 shrink-0" alt="Aperçu">
-                                    </div>
-                                </div>
+                            <div>
+                                <label class="text-xs font-bold text-nordic-slate block mb-1">Précisions (Taille, couleur...)</label>
+                                <input v-model="newItem.notes" type="text" placeholder="Ex: Taille M, édition collector..."
+                                       class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
                             </div>
 
                             <button @click="addGift" :disabled="!newItem.title || isAdding" 
@@ -335,10 +321,6 @@
                                 <div v-for="item in myGroup.items" :key="item.id" 
                                      class="p-3.5 rounded-2xl border border-slate-100 bg-nordic-bg/40 flex justify-between items-center gap-3">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 shrink-0 flex items-center justify-center overflow-hidden">
-                                            <img v-if="item.image_url" :src="item.image_url" @error="item.image_url = null" class="w-full h-full object-cover" alt="Thumb">
-                                            <span v-else class="text-base">🎁</span>
-                                        </div>
                                         <div>
                                             <div class="font-semibold text-slate-800 text-sm flex items-center gap-2">
                                                 <span>{{ item.title }}</span>
@@ -361,46 +343,34 @@
                 </div>
 
                 <!-- TAB 3 : RÉCAP IMPRIMABLE (toutes les listes, libres et réservées) -->
-                <div v-if="activeTab === 'print'" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-                    <div class="border-b pb-4 mb-6">
-                        <h2 class="text-2xl font-bold text-slate-900">Répertoire des Cadeaux de Noël 🎄</h2>
-                        <p class="text-xs text-slate-500">Récapitulatif pour les courses familiales</p>
-                        <p class="no-print text-xs text-nordic-gold mt-2">💡 Pour imprimer cet onglet : Ctrl + P (ou ⌘ + P sur Mac)</p>
+                <div v-if="activeTab === 'print'" class="print-recap bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="border-b pb-2 mb-3">
+                        <h2 class="text-lg font-bold text-slate-900">Cadeaux de Noël 🎄</h2>
+                        <p class="no-print text-xs text-nordic-gold mt-1">💡 Pour imprimer : Ctrl + P (ou ⌘ + P sur Mac)</p>
                     </div>
 
                     <div v-if="printSections.length === 0" class="text-slate-400 italic text-sm text-center py-6">
                         Aucune liste pour le moment ❄️
                     </div>
 
-                    <section v-for="section in printSections" :key="section.key" class="space-y-6 mb-8 last:mb-0">
-                        <h2 class="text-xl font-bold text-slate-900 border-b-2 border-slate-300 pb-1">{{ section.title }}</h2>
-                        <div v-for="personGroup in section.groups" :key="personGroup.key" class="print-card p-4 rounded-xl bg-slate-50">
-                            <h3 class="font-bold text-lg text-slate-800 border-b pb-1 mb-3">
-                                🎁 Liste de {{ personGroup.name }}
-                            </h3>
-                            <ul class="space-y-2">
-                                <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between gap-3 text-sm py-1 border-b border-slate-200/60 last:border-0">
-                                    <div>
-                                        <strong class="text-slate-900">{{ item.title }}</strong>
-                                        <span v-if="item.notes" class="text-slate-500 text-xs block italic">{{ item.notes }}</span>
-                                    </div>
-                                    <div class="text-right shrink-0">
+                    <section v-for="section in printSections" :key="section.key" class="mb-3 last:mb-0">
+                        <h2 class="text-sm font-bold text-slate-900 border-b border-slate-300 mb-1.5">{{ section.title }}</h2>
+                        <!-- Deux colonnes pour gagner de la place à l'impression -->
+                        <div class="columns-1 sm:columns-2 print:columns-2 gap-6">
+                            <div v-for="personGroup in section.groups" :key="personGroup.key" class="print-card mb-2">
+                                <h3 class="font-bold text-sm text-slate-800">{{ personGroup.name }}</h3>
+                                <ul class="text-xs leading-snug">
+                                    <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between gap-2">
+                                        <span>
+                                            • {{ item.title }}<span v-if="item.notes" class="text-slate-500"> ({{ item.notes }})</span>
+                                        </span>
                                         <!-- Pas de statut sur sa propre liste : on garde la surprise -->
-                                        <span v-if="personGroup.isMine" class="text-slate-400 text-xs italic">
-                                            🤫 Surprise
+                                        <span v-if="!personGroup.isMine" class="shrink-0 text-slate-500">
+                                            {{ item.buyer_id === currentUser.id ? '✅ moi' : item.buyer_id ? '🔒 pris' : '☐ libre' }}
                                         </span>
-                                        <span v-else-if="item.buyer_id === currentUser.id" class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">
-                                            ✅ Réservé par VOUS
-                                        </span>
-                                        <span v-else-if="item.buyer_id" class="text-slate-600 font-medium bg-slate-200 px-2 py-0.5 rounded text-xs">
-                                            🔒 Réservé par un autre
-                                        </span>
-                                        <span v-else class="text-amber-700 font-medium bg-amber-100 px-2 py-0.5 rounded text-xs">
-                                            💡 Disponible
-                                        </span>
-                                    </div>
-                                </li>
-                            </ul>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -444,8 +414,6 @@
             // Configuration Supabase (clé publishable : conçue pour être exposée côté navigateur)
             const SUPABASE_URL = 'https://rzobwjmccavhkouhlcph.supabase.co';
             const SUPABASE_KEY = 'sb_publishable_bBaw-rW5_NuZ5cDUOCLG0A_nasjgpgb';
-            // Nom de la Edge Function de scraping OpenGraph (voir supabase/functions/og-image)
-            const OG_FUNCTION_NAME = 'og-image';
 
             createApp({
                 setup() {
@@ -461,8 +429,7 @@
                     const selectedUserId = ref('');
                     const activeTab = ref('others');
 
-                    const newItem = ref({ targetKey: '', title: '', url: '', notes: '', image_url: '' });
-                    const isFetchingPreview = ref(false);
+                    const newItem = ref({ targetKey: '', title: '', url: '', notes: '' });
                     const isAdding = ref(false);
                     const loadingId = ref(null);
                     const itemToDelete = ref(null);
@@ -627,42 +594,16 @@
                         return url.startsWith('http://') || url.startsWith('https://') ? url : 'https://' + url;
                     };
 
-                    // Récupère automatiquement la vignette OpenGraph du lien via la Edge Function
-                    const fetchPreview = async () => {
-                        const url = newItem.value.url.trim();
-                        if (!url || newItem.value.image_url || !isOnline()) return;
-
-                        isFetchingPreview.value = true;
-                        try {
-                            const { data, error } = await supabaseClient.value.functions.invoke(OG_FUNCTION_NAME, {
-                                body: { url: formatUrl(url) }
-                            });
-                            if (error) throw error;
-                            // L'utilisateur a pu changer le lien ou saisir une image entre-temps
-                            if (newItem.value.url.trim() === url && !newItem.value.image_url) {
-                                if (data?.image) newItem.value.image_url = data.image;
-                                if (data?.title && !newItem.value.title) newItem.value.title = data.title;
-                            }
-                        } catch (e) {
-                            // Fonction non déployée ou site bloquant : on reste silencieux, la vignette est optionnelle
-                            console.warn('Vignette indisponible :', e);
-                        }
-                        isFetchingPreview.value = false;
-                    };
-
                     // Ajout d'une idée de cadeau
                     const addGift = async () => {
                         if (!newItem.value.title || !currentUser.value) return;
                         isAdding.value = true;
-                        // Dernière chance de récupérer la vignette si le champ n'a pas perdu le focus
-                        if (!newItem.value.image_url) await fetchPreview();
 
                         const [type, id] = newItem.value.targetKey.split(':');
                         const payload = {
                             title: newItem.value.title.trim(),
                             url: newItem.value.url.trim() || null,
                             notes: newItem.value.notes.trim() || null,
-                            image_url: newItem.value.image_url.trim() || null,
                             owner_user_id: type === 'user' ? id : null,
                             owner_child_id: type === 'child' ? id : null,
                             buyer_id: null
@@ -684,7 +625,6 @@
                         newItem.value.title = '';
                         newItem.value.url = '';
                         newItem.value.notes = '';
-                        newItem.value.image_url = '';
                         isAdding.value = false;
                     };
 
@@ -754,9 +694,9 @@
                     return {
                         isDemoMode,
                         users, children, wishlist, currentUser, selectedUserId, activeTab,
-                        newItem, isFetchingPreview, isAdding, loadingId, itemToDelete,
+                        newItem, isAdding, loadingId, itemToDelete,
                         myChildren, familySections, myOwnGroups, printSections,
-                        login, logout, formatUrl, fetchPreview, addGift,
+                        login, logout, formatUrl, addGift,
                         takeItem, releaseItem, promptRemove, executeRemove
                     };
                 }
