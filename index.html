@@ -161,17 +161,17 @@
                 <div class="no-print flex bg-white/60 p-1 rounded-2xl border border-nordic-gold/20 shadow-sm">
                     <button @click="activeTab = 'others'" 
                             :class="activeTab === 'others' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'" 
-                            class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
+                            class="flex-1 py-2 sm:py-3 px-1 text-center leading-tight rounded-xl transition text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2">
                         <span>🎁</span> Listes de la famille
                     </button>
                     <button @click="activeTab = 'mine'" 
                             :class="activeTab === 'mine' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'" 
-                            class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
+                            class="flex-1 py-2 sm:py-3 px-1 text-center leading-tight rounded-xl transition text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2">
                         <span>📝</span> Ma liste & Enfants
                     </button>
                     <button @click="activeTab = 'print'"
                             :class="activeTab === 'print' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'"
-                            class="flex-1 py-3 text-center rounded-xl transition text-xs sm:text-sm flex items-center justify-center gap-2">
+                            class="flex-1 py-2 sm:py-3 px-1 text-center leading-tight rounded-xl transition text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2">
                         <span>🖨️</span> Récap imprimable
                     </button>
                 </div>
