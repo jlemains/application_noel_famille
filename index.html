@@ -223,7 +223,7 @@
                                                 🔗 Voir le lien
                                             </a>
                                         </div>
-                                        <p v-if="item.notes" class="text-xs text-slate-500 italic">💬 {{ item.notes }}</p>
+                                        <p v-if="item.notes" class="text-xs text-slate-500 italic break-words">💬 <template v-for="(part, i) in notesParts(item.notes)" :key="i"><a v-if="part.url" :href="part.url" target="_blank" class="not-italic text-nordic-gold hover:underline">🔗 {{ part.label }}</a><template v-else>{{ part.text }}</template></template></p>
                                         
                                         <!-- BADGES ETAT -->
                                         <div class="pt-1">
@@ -326,15 +326,21 @@
                                                 <span>{{ item.title }}</span>
                                                 <a v-if="item.url" :href="formatUrl(item.url)" target="_blank" class="text-[10px] text-nordic-gold hover:underline">🔗 Lien</a>
                                             </div>
-                                            <p v-if="item.notes" class="text-xs text-slate-500">💬 {{ item.notes }}</p>
+                                            <p v-if="item.notes" class="text-xs text-slate-500 break-words">💬 <template v-for="(part, i) in notesParts(item.notes)" :key="i"><a v-if="part.url" :href="part.url" target="_blank" class="text-nordic-gold hover:underline">🔗 {{ part.label }}</a><template v-else>{{ part.text }}</template></template></p>
                                         </div>
                                     </div>
 
-                                    <!-- Supprimer (avec vérification si déjà pris) -->
-                                    <button @click="promptRemove(item)" :disabled="loadingId === item.id"
-                                            class="text-nordic-burgundy hover:bg-red-50 p-2 rounded-xl text-xs font-semibold transition shrink-0 disabled:opacity-40">
-                                        🗑️ Supprimer
-                                    </button>
+                                    <!-- Modifier / Supprimer (avec vérification si déjà pris) -->
+                                    <div class="flex shrink-0">
+                                        <button @click="promptEdit(item)" :disabled="loadingId === item.id"
+                                                class="text-nordic-pine hover:bg-emerald-50 p-2 rounded-xl text-xs font-semibold transition disabled:opacity-40">
+                                            ✏️ Modifier
+                                        </button>
+                                        <button @click="promptRemove(item)" :disabled="loadingId === item.id"
+                                                class="text-nordic-burgundy hover:bg-red-50 p-2 rounded-xl text-xs font-semibold transition disabled:opacity-40">
+                                            🗑️ Supprimer
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -362,7 +368,7 @@
                                 <ul class="text-xs leading-snug">
                                     <li v-for="item in personGroup.items" :key="item.id" class="flex justify-between gap-2">
                                         <span>
-                                            • {{ item.title }}<span v-if="item.notes" class="text-slate-500"> ({{ item.notes }})</span>
+                                            • {{ item.title }}<span v-if="item.notes" class="text-slate-500 break-words"> (<template v-for="(part, i) in notesParts(item.notes)" :key="i">{{ part.url ? '🔗 ' + part.label : part.text }}</template>)</span>
                                         </span>
                                         <!-- Pas de statut sur sa propre liste : on garde la surprise -->
                                         <span v-if="!personGroup.isMine" class="shrink-0 text-slate-500">
@@ -377,6 +383,45 @@
 
             </div>
 
+        </div>
+
+        <!-- MODALE / POP-UP DE MODIFICATION (AVEC ALERTE ANONYME SI DÉJÀ PRIS) -->
+        <div v-if="itemToEdit" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 no-print">
+            <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4">
+                <h3 class="text-lg font-bold text-slate-800 text-center">✏️ Modifier le cadeau</h3>
+
+                <!-- Message si déjà réservé (SANS révéler l'acheteur) -->
+                <div v-if="itemToEdit.buyer_id" class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 font-medium">
+                    <strong>Attention, un lutin secret a déjà réservé ce cadeau !</strong> Il l'a peut-être déjà acheté : évitez de le changer complètement.
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-nordic-slate block mb-1">Intitulé du cadeau *</label>
+                        <input v-model="itemToEdit.title" type="text"
+                               class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-nordic-slate block mb-1">Lien Web (Optionnel)</label>
+                        <input v-model="itemToEdit.url" type="url" placeholder="https://..."
+                               class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-nordic-slate block mb-1">Précisions (Taille, couleur...)</label>
+                        <input v-model="itemToEdit.notes" type="text"
+                               class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-nordic-gold font-medium">
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button @click="itemToEdit = null" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-xs transition">
+                        Annuler
+                    </button>
+                    <button @click="executeEdit" :disabled="!itemToEdit.title.trim()" class="flex-1 bg-nordic-pine hover:bg-nordic-pineLight text-white py-3 rounded-xl font-bold text-xs shadow-md transition disabled:opacity-40">
+                        Enregistrer
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- MODALE / POP-UP DE SUPPRESSION (AVEC ALERTE ANONYME SI DÉJÀ PRIS) -->
@@ -433,6 +478,7 @@
                     const isAdding = ref(false);
                     const loadingId = ref(null);
                     const itemToDelete = ref(null);
+                    const itemToEdit = ref(null); // copie modifiable du cadeau en cours d'édition
 
                     // Données de secours / Démo si Supabase n'est pas encore connecté
                     const loadFallbackData = () => {
@@ -594,6 +640,15 @@
                         return url.startsWith('http://') || url.startsWith('https://') ? url : 'https://' + url;
                     };
 
+                    // Découpe les précisions en texte + liens courts (nom du site) pour ne pas afficher les URL en entier
+                    const notesParts = (notes) => notes.split(/((?:https?:\/\/|www\.)\S+)/).filter(Boolean).map(part => {
+                        if (!/^(https?:\/\/|www\.)\S+$/.test(part)) return { text: part };
+                        const url = formatUrl(part);
+                        let label = 'lien';
+                        try { label = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { /* URL invalide : libellé générique */ }
+                        return { url, label };
+                    });
+
                     // Ajout d'une idée de cadeau
                     const addGift = async () => {
                         if (!newItem.value.title || !currentUser.value) return;
@@ -664,6 +719,40 @@
                         loadingId.value = null;
                     };
 
+                    // Fenêtre de modification (on travaille sur une copie pour pouvoir annuler)
+                    const promptEdit = (item) => {
+                        itemToEdit.value = {
+                            id: item.id,
+                            title: item.title,
+                            url: item.url || '',
+                            notes: item.notes || '',
+                            buyer_id: item.buyer_id
+                        };
+                    };
+
+                    const executeEdit = async () => {
+                        const edited = itemToEdit.value;
+                        if (!edited || !edited.title.trim()) return;
+                        const changes = {
+                            title: edited.title.trim(),
+                            url: edited.url.trim() || null,
+                            notes: edited.notes.trim() || null
+                        };
+                        loadingId.value = edited.id;
+                        itemToEdit.value = null;
+
+                        if (isOnline()) {
+                            const { error } = await supabaseClient.value.from('wishlist').update(changes).eq('id', edited.id);
+                            reportError(error, 'modifier le cadeau');
+                            await fetchAllData();
+                        } else {
+                            const found = wishlist.value.find(w => w.id === edited.id);
+                            if (found) Object.assign(found, changes);
+                        }
+
+                        loadingId.value = null;
+                    };
+
                     // Fenêtre de suppression
                     const promptRemove = (item) => {
                         itemToDelete.value = item;
@@ -694,10 +783,10 @@
                     return {
                         isDemoMode,
                         users, children, wishlist, currentUser, selectedUserId, activeTab,
-                        newItem, isAdding, loadingId, itemToDelete,
+                        newItem, isAdding, loadingId, itemToDelete, itemToEdit,
                         myChildren, familySections, myOwnGroups, printSections,
-                        login, logout, formatUrl, addGift,
-                        takeItem, releaseItem, promptRemove, executeRemove
+                        login, logout, formatUrl, notesParts, addGift,
+                        takeItem, releaseItem, promptEdit, executeEdit, promptRemove, executeRemove
                     };
                 }
             }).mount('#app');
