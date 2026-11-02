@@ -125,7 +125,10 @@
                 
                 <select v-model="selectedUserId" class="w-full p-4 border border-slate-200 rounded-2xl mb-5 text-base bg-nordic-bg font-semibold text-nordic-pine focus:outline-none focus:border-nordic-gold focus:ring-2 focus:ring-nordic-gold/20 transition">
                     <option disabled value="">Sélectionner mon profil...</option>
-                    <option v-for="u in users" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    <option v-for="u in familyUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+                    <optgroup v-if="guestUsers.length" label="Invités (réservation uniquement)">
+                        <option v-for="u in guestUsers" :key="u.id" :value="u.id">🎁 {{ u.name }}</option>
+                    </optgroup>
                 </select>
 
                 <button @click="login" :disabled="!selectedUserId" 
@@ -144,7 +147,7 @@
                             {{ currentUser.name.charAt(0) }}
                         </div>
                         <div>
-                            <span class="text-[10px] text-nordic-muted font-bold uppercase tracking-wider block">Lutin actif</span>
+                            <span class="text-[10px] text-nordic-muted font-bold uppercase tracking-wider block">{{ currentUser.is_guest ? 'Lutin invité 🎁' : 'Lutin actif' }}</span>
                             <span class="font-bold text-lg text-nordic-pine">{{ currentUser.name }}</span>
                         </div>
                     </div>
@@ -164,7 +167,7 @@
                             class="flex-1 py-2 sm:py-3 px-1 text-center leading-tight rounded-xl transition text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2">
                         <span>🎁</span> Listes de la famille
                     </button>
-                    <button @click="activeTab = 'mine'" 
+                    <button v-if="!currentUser.is_guest" @click="activeTab = 'mine'"
                             :class="activeTab === 'mine' ? 'bg-nordic-pine text-white shadow-sm font-semibold' : 'text-nordic-slate hover:text-nordic-pine font-medium'" 
                             class="flex-1 py-2 sm:py-3 px-1 text-center leading-tight rounded-xl transition text-xs sm:text-sm flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2">
                         <span>📝</span> Ma liste & Enfants
@@ -256,7 +259,7 @@
                 </div>
 
                 <!-- TAB 2 : MA LISTE & ENFANTS (AJOUT ET GESTION) -->
-                <div v-if="activeTab === 'mine'" class="space-y-6">
+                <div v-if="activeTab === 'mine' && !currentUser.is_guest" class="space-y-6">
                     
                     <!-- FORMULAIRE D'AJOUT D'IDÉE -->
                     <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-nordic-gold/30">
@@ -485,7 +488,8 @@
                         users.value = [
                             { id: 'u1', name: 'Charlotte' },
                             { id: 'u2', name: 'Maman' },
-                            { id: 'u3', name: 'Thomas' }
+                            { id: 'u3', name: 'Thomas' },
+                            { id: 'u4', name: 'Fina', is_guest: true }
                         ];
                         children.value = [
                             { id: 'c1', name: 'Léo' },
@@ -549,6 +553,8 @@
                         selectedUserId.value = user.id;
                         localStorage.setItem('noel_user_id', user.id);
                         newItem.value.targetKey = 'user:' + user.id;
+                        // Les invités (ex : grands-parents) n'ont pas de liste : retour sur les listes de la famille
+                        if (user.is_guest && activeTab.value === 'mine') activeTab.value = 'others';
                     };
 
                     onMounted(async () => {
@@ -569,6 +575,10 @@
                         localStorage.removeItem('noel_user_id');
                     };
 
+                    // Menu de connexion : la famille d'abord, puis les invités à part
+                    const familyUsers = computed(() => users.value.filter(u => !u.is_guest));
+                    const guestUsers = computed(() => users.value.filter(u => u.is_guest));
+
                     // Les enfants du parent connecté (un enfant peut avoir deux parents via child_parents)
                     const myChildren = computed(() => {
                         if (!currentUser.value) return [];
@@ -584,6 +594,8 @@
                         if (!currentUser.value) return [];
 
                         const adults = users.value
+                            // Les invités réservent mais n'ont pas de liste : on ne les affiche pas
+                            .filter(u => !u.is_guest)
                             .filter(u => includeSelf || u.id !== currentUser.value.id)
                             .map(u => ({
                                 id: 'user:' + u.id,
@@ -782,7 +794,7 @@
 
                     return {
                         isDemoMode,
-                        users, children, wishlist, currentUser, selectedUserId, activeTab,
+                        users, familyUsers, guestUsers, children, wishlist, currentUser, selectedUserId, activeTab,
                         newItem, isAdding, loadingId, itemToDelete, itemToEdit,
                         myChildren, familySections, myOwnGroups, printSections,
                         login, logout, formatUrl, notesParts, addGift,
