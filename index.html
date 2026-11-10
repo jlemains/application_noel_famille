@@ -200,6 +200,16 @@
 
                 <!-- TAB 1 : LISTES DE LA FAMILLE (SECTION ADULTES PUIS SECTION ENFANTS) -->
                 <div v-if="activeTab === 'others'" class="space-y-8">
+                  <!-- GROS BOUTON TOUT DÉROULER / TOUT ENROULER -->
+                  <div v-if="familySections.length > 0" class="space-y-2">
+                    <button @click="allOpen ? collapseAll() : expandAll()"
+                            class="w-full bg-nordic-gold hover:bg-nordic-goldHover text-white text-base sm:text-lg py-4 rounded-2xl font-bold shadow-md transition flex items-center justify-center gap-2">
+                        <span class="text-2xl">{{ allOpen ? '🔼' : '🔽' }}</span>
+                        <span>{{ allOpen ? 'Tout enrouler' : 'Tout dérouler' }}</span>
+                    </button>
+                    <p class="text-center text-xs text-nordic-muted">👆 Ou touche le nom d'une personne pour voir sa liste</p>
+                  </div>
+
                   <section v-for="section in familySections" :key="section.key" class="space-y-6">
                     <h2 class="text-xl font-bold text-nordic-pine flex items-center gap-2 px-1">
                         <span>{{ section.title }}</span>
@@ -208,19 +218,21 @@
                     <div v-for="group in section.groups" :key="group.id"
                          class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 hover:border-nordic-gold/30 transition">
 
-                        <!-- EN-TÊTE DU PROFIL (ADULTE OU ENFANT) -->
-                        <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-100">
-                            <div>
-                                <h3 class="font-bold text-xl text-nordic-pine flex items-center gap-2">
-                                    <span>{{ group.isChild ? '👶' : '🎄' }}</span>
-                                    <span>{{ group.name }}</span>
-                                </h3>
-                            </div>
-                            <span class="text-xs bg-nordic-bg text-nordic-slate font-medium px-3 py-1 rounded-full border border-slate-200">
-                                {{ group.items.length }} idée(s)
+                        <!-- EN-TÊTE DU PROFIL (ADULTE OU ENFANT) : un clic ouvre / ferme la liste -->
+                        <button type="button" @click="toggleGroup(group.key)"
+                                :class="isOpen(group.key) ? 'pb-4 mb-4 border-b border-slate-100' : ''"
+                                class="w-full text-left flex justify-between items-center gap-3">
+                            <h3 class="font-bold text-xl text-nordic-pine flex items-center gap-2">
+                                <span class="text-nordic-gold text-base w-4">{{ isOpen(group.key) ? '▾' : '▸' }}</span>
+                                <span>{{ group.isChild ? '👶' : '🎄' }}</span>
+                                <span>{{ group.name }}</span>
+                            </h3>
+                            <span class="shrink-0 text-xs bg-nordic-bg text-nordic-slate font-medium px-3 py-1 rounded-full border border-slate-200">
+                                {{ group.items.length }} idée(s)<template v-if="group.items.length > 0"> · {{ freeCount(group) }} libre(s)</template>
                             </span>
-                        </div>
+                        </button>
 
+                        <template v-if="isOpen(group.key)">
                         <!-- LISTE VIDE -->
                         <div v-if="group.items.length === 0" class="text-slate-400 italic text-xs sm:text-sm text-center py-6 bg-slate-50/50 rounded-2xl">
                             Aucune idée ajoutée pour le moment ❄️
@@ -273,6 +285,7 @@
                                 </div>
                             </div>
                         </div>
+                        </template>
                     </div>
                   </section>
                 </div>
@@ -700,6 +713,35 @@
                     // Listes de TOUTE LA FAMILLE (onglet principal)
                     const familySections = computed(() => buildSections(false));
 
+                    // Listes déroulées ou enroulées : tout est enroulé à la première visite,
+                    // puis les listes ouvertes sont mémorisées sur l'appareil
+                    const readOpenKeys = () => {
+                        try { return JSON.parse(localStorage.getItem('noel_open_lists')) || []; } catch (e) { return []; }
+                    };
+                    const openKeys = ref(new Set(readOpenKeys()));
+                    const saveOpenKeys = () => {
+                        try { localStorage.setItem('noel_open_lists', JSON.stringify([...openKeys.value])); } catch (e) {}
+                    };
+                    const isOpen = (key) => openKeys.value.has(key);
+                    const toggleGroup = (key) => {
+                        const next = new Set(openKeys.value);
+                        next.has(key) ? next.delete(key) : next.add(key);
+                        openKeys.value = next;
+                        saveOpenKeys();
+                    };
+                    const visibleGroupKeys = computed(() => familySections.value.flatMap(s => s.groups.map(g => g.key)));
+                    const allOpen = computed(() => visibleGroupKeys.value.length > 0 && visibleGroupKeys.value.every(isOpen));
+                    const expandAll = () => {
+                        openKeys.value = new Set([...openKeys.value, ...visibleGroupKeys.value]);
+                        saveOpenKeys();
+                    };
+                    const collapseAll = () => {
+                        const visible = new Set(visibleGroupKeys.value);
+                        openKeys.value = new Set([...openKeys.value].filter(k => !visible.has(k)));
+                        saveOpenKeys();
+                    };
+                    const freeCount = (group) => group.items.filter(w => !w.buyer_id).length;
+
                     // Les propres cartes de l'utilisateur (Ses idées + Ses enfants)
                     const myOwnGroups = computed(() => {
                         if (!currentUser.value) return [];
@@ -873,6 +915,7 @@
                         users, familyUsers, guestUsers, children, wishlist, currentUser, selectedUserId, activeTab,
                         newItem, isAdding, loadingId, itemToDelete, itemToEdit,
                         myChildren, familySections, myOwnGroups, printSections,
+                        isOpen, toggleGroup, allOpen, expandAll, collapseAll, freeCount,
                         login, logout, formatUrl, notesParts, addGift,
                         takeItem, releaseItem, promptEdit, executeEdit, promptRemove, executeRemove
                     };
